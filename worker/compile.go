@@ -120,11 +120,32 @@ func (c *CompileAction) Prepare(dir string) error {
 		return errors.WithStack(err)
 	}
 	for _, file := range c.Files {
+		if isRecognizedFile(file.Filename) {
+			continue
+		}
 		if err := os.WriteFile(filepath.Join(dir, file.Filename), file.Content, 0666); err != nil {
 			return errors.Wrapf(err, "copying file %s", file.Filename)
 		}
 	}
 	return nil
+}
+
+
+var recognizedFilenames = []string{
+	"statements.pdf", "statements.md", "compare", ".stages",
+}
+
+func isRecognizedFile(filename string) bool {
+	// Admins may upload compare.* files and compile them.
+	if strings.HasPrefix(filename, "compare.") {
+		return true
+	}
+	for _, f := range recognizedFilenames {
+		if f == filename {
+			return true
+		}
+	}
+	return false
 }
 
 // Cleanup performs clean-up on the prepared directory.
