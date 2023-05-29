@@ -119,13 +119,13 @@ type CompileAction struct {
 }
 
 func (c *CompileAction) prepareFilesContent(db db.DBContext) error {
-	var queryIDs []*int
+	var queryIDs []int
 	for _, file := range c.Files {
 		if !isRecognizedFile(file.Filename) {
-			queryIDs = append(queryIDs, &file.ID)
+			queryIDs = append(queryIDs, file.ID)
 		}
 	}
-	collectedFiles, err := models.CollectFilesByID(db)
+	collectedFiles, err := models.CollectFilesByID(db, queryIDs...)
 	if err != nil {
 		return err
 	}
