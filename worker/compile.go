@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/natsukagami/kjudge/db"
 	"github.com/natsukagami/kjudge/models"
 	"github.com/pkg/errors"
 )
@@ -34,7 +35,7 @@ type CompileContext struct {
 // Returns whether the compilation succeeds.
 func Compile(c *CompileContext) (bool, error) {
 	// First we gotta know which compilation scheme we will be taking.
-	files, err := models.GetProblemFiles(c.DB, c.Problem.ID)
+	files, err := models.GetProblemFilesMeta(c.DB, c.Problem.ID)
 	if err != nil {
 		return false, err
 	}
@@ -77,7 +78,7 @@ func Compile(c *CompileContext) (bool, error) {
 	// Prepare source and files
 	action.Source.Content = c.Sub.Source
 	action.Files = files
-	if err := action.Prepare(dir); err != nil {
+	if err := action.Prepare(dir, c.DB); err != nil {
 		return false, err
 	}
 
@@ -107,22 +108,41 @@ func Compile(c *CompileContext) (bool, error) {
 // 3. Compile the source with "Command".
 // 4. Produce "Output" as the result.
 type CompileAction struct {
-	Source   *models.File
-	Files    []*models.File
-	Commands [][]string
-	Output   string
+	Source   		*models.File
+	Files    		[]*models.File
+	CompileFiles	[]*models.File
+	Commands 		[][]string
+	Output   		string
+}
+
+func (c *CompileAction) prepareFilesContent(db db.DBContext) error {
+	var queryIDs []*int
+	for _, file := range c.Files {
+		if !isRecognizedFile(file.Filename) {
+			queryIDs = append(queryIDs, &file.ID)
+		}
+	}
+	collectedFiles, err := models.CollectFilesByID(db)
+	if err != nil {
+		return err
+	}
+	for _, file := range collectedFiles {
+		c.CompileFiles = append(c.CompileFiles, file)
+	}
+	return nil
 }
 
 // Prepare prepares a temporary folder and copies all the content there.
-func (c *CompileAction) Prepare(dir string) error {
+func (c *CompileAction) Prepare(dir string, db db.DBContext) error {
 	// Copy over all files and the source code.
+	c.prepareFilesContent(db)
 	if err := os.WriteFile(filepath.Join(dir, c.Source.Filename), c.Source.Content, 0666); err != nil {
 		return errors.WithStack(err)
 	}
-	for _, file := range c.Files {
-		if isRecognizedFile(file.Filename) {
-			continue
-		}
+	if err := c.prepareFilesContent(db); err != nil {
+		return err
+	}
+	for _, file := range c.CompileFiles {
 		if err := os.WriteFile(filepath.Join(dir, file.Filename), file.Content, 0666); err != nil {
 			return errors.Wrapf(err, "copying file %s", file.Filename)
 		}
@@ -154,7 +174,8 @@ func (c *CompileAction) Cleanup(dir string) {
 }
 
 // Perform performs the compile action on the given directory.
-// The directory MUST contain all files given by the Problem, PLUS the written "Source" file.
+// The directory MUST contain all not-recognised files
+// given by the Problem, PLUS the written "Source" file.
 func (c *CompileAction) Perform(cwd string) (succeeded bool, messages []byte) {
 	allOutputs := bytes.Buffer{}
 	for _, command := range c.Commands {
