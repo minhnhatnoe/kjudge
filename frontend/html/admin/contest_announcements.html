@@ -27,9 +27,9 @@
     <label for="problem" class="text-sm block">For problem</label>
     <select class="form-input" id="problem" name="problem">
         {{ if eq .Form.Problem 0 }}
-        <option selected value="0">General Annonuncement</option>
+        <option selected value="0">General Announcement</option>
         {{ else }}
-        <option value="0">General Annonuncement</option>
+        <option value="0">General Announcement</option>
         {{ end }}
         {{ range .Problems }}
         {{ if eq $.Form.Problem .ID }}
