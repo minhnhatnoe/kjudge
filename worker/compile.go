@@ -96,7 +96,7 @@ func Compile(c *CompileContext) (bool, error) {
 		c.Sub.CompiledSource = nil
 		c.Sub.Verdict = models.VerdictCompileError
 	}
-	log.Printf("[WORKER] Compiling submission %v succeeded (result = %v).", c.Sub.ID, result)
+	log.Printf("[WORKER] Compiling submission %v finished (result = %v).", c.Sub.ID, result)
 
 	return result, c.Sub.Write(c.DB)
 }
