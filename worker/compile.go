@@ -78,7 +78,10 @@ func Compile(c *CompileContext) (bool, error) {
 	// Prepare source and files
 	action.Source.Content = c.Sub.Source
 	action.Files = files
-	if err := action.Prepare(dir, c.DB); err != nil {
+	if err := action.prepareFilesContent(c.DB); err != nil {
+		return false, err
+	}
+	if err := action.Prepare(dir); err != nil {
 		return false, err
 	}
 
@@ -133,14 +136,10 @@ func (c *CompileAction) prepareFilesContent(db db.DBContext) error {
 }
 
 // Prepare prepares a temporary folder and copies all the content there.
-func (c *CompileAction) Prepare(dir string, db db.DBContext) error {
+func (c *CompileAction) Prepare(dir string) error {
 	// Copy over all files and the source code.
-	c.prepareFilesContent(db)
 	if err := os.WriteFile(filepath.Join(dir, c.Source.Filename), c.Source.Content, 0666); err != nil {
 		return errors.WithStack(err)
-	}
-	if err := c.prepareFilesContent(db); err != nil {
-		return err
 	}
 	for _, file := range c.CompileFiles {
 		if err := os.WriteFile(filepath.Join(dir, file.Filename), file.Content, 0666); err != nil {
