@@ -145,6 +145,7 @@ func RunSingleTest(b *testing.B, ctx *BenchmarkContext, testset *PerfTestSet, sa
 	if err := ctx.assertRunComplete(testset); err != nil {
 		b.Fatal(err)
 	}
+	log.Printf("Finished running queue")
 }
 
 // TODO
