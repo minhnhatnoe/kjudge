@@ -1,6 +1,7 @@
 package performance
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -21,19 +22,47 @@ type BenchmarkContext struct {
 	problems map[string]*models.Problem
 }
 
-func NewBenchmarkContext(tmpDir string, remove bool) (*BenchmarkContext, error) {
+var AllTests = []*suites.PerfTestSet{
+	suites.BigInputProblem(),
+	suites.BigOutputProblem(),
+	suites.SpawnTimeProblem(),
+	suites.TLEProblem(),
+	suites.MemoryProblem(),
+	suites.CalcProblem(),
+}
+var AllSandbox = []string{"isolate", "raw"}
+
+func NewBenchmarkContext(tmpDir string, testList []*suites.PerfTestSet) (*BenchmarkContext, error) {
+	removeDB := false
+	if tmpDir == "" {
+		createdDir, err := os.MkdirTemp(os.TempDir(), "kjudge_test")
+		if err != nil {
+			log.Fatal(err)
+		}
+		tmpDir = createdDir
+		removeDB = true
+	}
+	log.Printf("saving DB to %v", tmpDir)
+
 	benchDB, err := db.New(filepath.Join(tmpDir, "bench.db"))
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := &BenchmarkContext{tdir: tmpDir, remove: remove, db: benchDB, problems: make(map[string]*models.Problem)}
+	ctx := &BenchmarkContext{tdir: tmpDir, remove: removeDB, db: benchDB, problems: make(map[string]*models.Problem)}
 
 	if err := ctx.writeContest(); err != nil {
+		ctx.Close()
 		return nil, err
 	}
 
 	if err := ctx.writeUser(); err != nil {
+		ctx.Close()
+		return nil, err
+	}
+
+	if err := ctx.writeTestList(testList); err != nil {
+		ctx.Close()
 		return nil, err
 	}
 
@@ -79,36 +108,40 @@ func (ctx *BenchmarkContext) writeUser() error {
 	return errors.Wrap(ctx.user.Write(ctx.db), "creating user")
 }
 
-func (ctx *BenchmarkContext) writeProblem(testset *suites.PerfTestSet) error {
-	problem, err := testset.AddToDB(ctx.db, 2403, len(ctx.problems)+1, ctx.contest.ID)
-	if err != nil {
-		return errors.Wrapf(err, "creating testset %v's problem", testset.Name)
+func (ctx *BenchmarkContext) writeTestList(testList []*suites.PerfTestSet) error {
+	for _, testset := range testList {
+		log.Printf("creating problem %v", testset.Name)
+		problem, err := testset.AddToDB(ctx.db, 2403, len(ctx.problems)+1, ctx.contest.ID)
+		if err != nil {
+			return errors.Wrapf(err, "creating testset %v's problem", testset.Name)
+		}
+		
+		ctx.problems[testset.Name] = problem
 	}
-
-	ctx.problems[testset.Name] = problem
 	return nil
 }
 
-const testSolution = `#include "solution.hpp"
-`
+const testSolution = `#include "solution.hpp"`
 
-func (ctx *BenchmarkContext) writeSolution(problemName string) error {
-	problem := ctx.problems[problemName]
-	sub := models.Submission{
-		ProblemID:   problem.ID,
-		UserID:      ctx.user.ID,
-		Source:      []byte(testSolution),
-		Language:    models.LanguageCpp,
-		SubmittedAt: time.Now(),
-		Verdict:     models.VerdictIsInQueue,
-	}
-	if err := sub.Write(ctx.db); err != nil {
-		return err
-	}
+func (ctx *BenchmarkContext) writeSolutions(problemName string, N int) error {
+	for i := 0; i < N; i++ {
+		problem := ctx.problems[problemName]
+		sub := models.Submission{
+			ProblemID:   problem.ID,
+			UserID:      ctx.user.ID,
+			Source:      []byte(testSolution),
+			Language:    models.LanguageCpp,
+			SubmittedAt: time.Now(),
+			Verdict:     models.VerdictIsInQueue,
+		}
+		if err := sub.Write(ctx.db); err != nil {
+			return err
+		}
 
-	job := models.NewJobScore(sub.ID)
-	if err := job.Write(ctx.db); err != nil {
-		return err
+		job := models.NewJobScore(sub.ID)
+		if err := job.Write(ctx.db); err != nil {
+			return err
+		}
 	}
 	return nil
 }
