@@ -2,9 +2,9 @@ package suites
 
 import "math/rand"
 
-const tleCode = `#include <stdio.h>
+const tleCode = `#include <time.h>
 int main(){
-	while (time());
+	while (time(NULL));
 }
 `
 

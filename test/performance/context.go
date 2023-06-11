@@ -3,16 +3,12 @@ package performance
 import (
 	"os"
 	"path/filepath"
-	"testing"
 	"time"
 
 	"github.com/natsukagami/kjudge/db"
 	"github.com/natsukagami/kjudge/models"
 	"github.com/natsukagami/kjudge/server/auth"
 	"github.com/natsukagami/kjudge/test/performance/suites"
-	"github.com/natsukagami/kjudge/worker"
-	"github.com/natsukagami/kjudge/worker/queue"
-	"github.com/natsukagami/kjudge/worker/sandbox"
 	"github.com/pkg/errors"
 )
 
@@ -115,30 +111,6 @@ func (ctx *BenchmarkContext) writeSolution(problemName string) error {
 		return err
 	}
 	return nil
-}
-
-func RunSingleTest(b *testing.B, ctx *BenchmarkContext, testset *suites.PerfTestSet, sandboxName string) {
-	sandbox, err := worker.NewSandbox(
-		sandboxName,
-		sandbox.IgnoreWarnings(true),
-		sandbox.EnableSandboxLogs(false))
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < b.N; i++ {
-		ctx.writeSolution(testset.Name)
-	}
-
-	queue := queue.NewQueue(ctx.db, sandbox, queue.CompileLogs(false), queue.RunLogs(false), queue.ScoreLogs(false))
-
-	b.ResetTimer()
-	queue.Run()
-	b.StopTimer()
-
-	if err := ctx.assertRunComplete(testset); err != nil {
-		b.Fatal(err)
-	}
 }
 
 // TODO
