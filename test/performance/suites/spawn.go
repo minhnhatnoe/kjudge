@@ -1,4 +1,4 @@
-package performance
+package suites
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ int main(){
 `
 
 // O(1) problem to compare sandbox spawn time.
-// Problem: Input one number, then output the double of that number
+// Problem: Input one number, then output the double of that number.
 func SpawnTimeProblem() *PerfTestSet {
 	// maxValue * 2 must not cause integer overflow
 	maxValue := 1 << 30
@@ -25,6 +25,6 @@ func SpawnTimeProblem() *PerfTestSet {
 			value := r.Intn(maxValue)
 			return []byte(fmt.Sprintf("%v", value))
 		},
-		Solution: []byte(spawnTimeCode), // TODO
+		Solution: []byte(spawnTimeCode),
 	}
 }

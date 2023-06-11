@@ -1,5 +1,4 @@
-// Package perf_test provides performance testing
-package performance
+package suites
 
 import (
 	"database/sql"
@@ -11,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TODO: Output, Memory, Calculate, TLE
+// TODO: Memory
 
 type PerfTestSet struct {
 	Name      string
@@ -19,7 +18,6 @@ type PerfTestSet struct {
 	CapTime   int                     // Time limit sent to sandbox
 	Generator func(*rand.Rand) []byte // Returns input
 	Solution  []byte                  // Solution to tested problem
-
 }
 
 // Generates problem and returns id
