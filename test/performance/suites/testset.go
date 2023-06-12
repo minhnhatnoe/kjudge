@@ -10,8 +10,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TODO: Memory
-
 type PerfTestSet struct {
 	Name      string
 	Count     int
