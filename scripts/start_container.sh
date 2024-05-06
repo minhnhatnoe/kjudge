@@ -2,10 +2,11 @@
 
 set -e
 
-useHTTPS=false
+cmd="./kjudge"
 
 showUsage() {
-    echo "$(basename "$0")
+    echo \
+"Usage of $(basename "$0")
 
     environment variable options:
         HTTPS=preconfigured    Turn on HTTPS, using /certs/kjudge.pem and /certs/kjudge.key as certificate and private key.
@@ -22,7 +23,9 @@ showUsage() {
         - CERT_ALTNAMES [IP:127.0.0.1,DNS:localhost]   A list of hosts that kjudge will be listening on, either by IP (as 'IP:1.2.3.4') or DNS (as 'DNS:google.com'), separated by ','
     
     favicon usage:
-        If /data/favicon.ico, start kjudge with favicon support."
+        If /data/favicon.ico, start kjudge with favicon support.
+"
+    $cmd --help 2>&1 | sed -n '/Usage/,$p'
 }
 
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
@@ -30,24 +33,24 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     exit 0
 fi
 
+useHTTPS=false
 case ${HTTPS} in
     preconfigured)
-    if [ ! -d "/certs" ]; then
-        >&2 echo "Please mount the directory containing certs to /certs"
-        exit 1
-    fi
-    useHTTPS=true
-    ;;
+        if [ ! -d "/certs" ]; then
+            >&2 echo "Please mount the directory containing certs to /certs"
+            exit 1
+        fi
+        useHTTPS=true
+        ;;
     generate)
-    useHTTPS=true
-    export ROOT_CA_PORT=80 # Enable root certificate authority endpoint
-    mkdir -p /certs
-    scripts/gen_cert.sh /certs
-    ;;
+        export ROOT_CA_PORT=80 # Enable root certificate authority endpoint
+        mkdir -p /certs
+        scripts/gen_cert.sh /certs
+        useHTTPS=true
+        ;;
 esac
 
-cmd="kjudge"
-args="-file /data/kjudge.db"
+args="$@ -file /data/kjudge.db"
 
 if [ "${useHTTPS}" = true ]; then
     args="$args -port 443 -https /certs"
@@ -59,5 +62,4 @@ if [ -f "/data/favicon.ico" ]; then
     args="$args -favicon /data/favicon.ico"
 fi
 
-# shellcheck disable=SC2086
-$cmd $args "$@"
+$cmd $args
